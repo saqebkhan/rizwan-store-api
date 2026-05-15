@@ -37,16 +37,23 @@ const sendEmail = async (mailOptions) => {
         if (resend) {
             console.log('Attempting emergency fallback to Resend API...');
             try {
-                // Map Nodemailer mailOptions to Resend format
-                const info = await resend.emails.send({
-                    from: mailOptions.from || 'onboarding@resend.dev',
+                // IMPORTANT: Resend will reject the email if we try to send 'from' a @gmail.com address.
+                // We MUST use 'onboarding@resend.dev' unless you have verified a custom domain on Resend.
+                const response = await resend.emails.send({
+                    from: 'Rizwan Store <onboarding@resend.dev>',
                     to: mailOptions.to,
                     subject: mailOptions.subject,
                     html: mailOptions.html,
                     text: mailOptions.text
                 });
-                console.log('✅ Email sent via Resend Fallback');
-                return info;
+                
+                if (response.error) {
+                    console.error('❌ Resend API Error:', response.error);
+                    throw new Error(response.error.message);
+                }
+                
+                console.log('✅ Email sent via Resend Fallback, ID:', response.data?.id);
+                return { messageId: response.data?.id };
             } catch (innerErr) {
                 console.error('❌ Resend fallback also failed:', innerErr);
                 throw innerErr;
