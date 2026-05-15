@@ -1,20 +1,9 @@
 const Inquiry = require('../models/Inquiry');
 const Product = require('../models/Product');
 const Session = require('../models/Session');
-const nodemailer = require('nodemailer');
+const { sendEmail } = require('../utils/mailer');
 
 exports.createInquiry = async (req, res) => {
-    const transporter = nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 465,
-        secure: true,
-        family: 4,
-        auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
-        },
-    });
-
     try {
         const inquiryData = req.body;
         const inquiry = new Inquiry(inquiryData);
@@ -34,7 +23,7 @@ exports.createInquiry = async (req, res) => {
             );
         }
 
-        // Send Email to Admin
+        // Send Email to Admin (Fire and forget, don't await to block API)
         const mailOptions = {
             from: process.env.EMAIL_FROM,
             to: process.env.ADMIN_EMAIL,
@@ -52,12 +41,9 @@ exports.createInquiry = async (req, res) => {
             `
         };
 
-        try {
-            const info = await transporter.sendMail(mailOptions);
-            console.log('Inquiry Email Sent! Message ID:', info.messageId);
-        } catch (err) {
-            console.error('CRITICAL EMAIL ERROR:', err);
-        }
+        sendEmail(mailOptions)
+            .then(info => console.log('Inquiry Email Sent! Message ID:', info.messageId))
+            .catch(err => console.error('CRITICAL EMAIL ERROR:', err));
 
         res.status(201).json({ message: 'Inquiry submitted successfully', inquiry });
     } catch (error) {

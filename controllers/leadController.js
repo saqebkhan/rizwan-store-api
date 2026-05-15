@@ -1,5 +1,5 @@
 const Lead = require('../models/Lead');
-const nodemailer = require('nodemailer');
+const { sendEmail } = require('../utils/mailer');
 
 exports.createLead = async (req, res) => {
     try {
@@ -8,17 +8,6 @@ exports.createLead = async (req, res) => {
         await lead.save();
 
         // Email Notification
-        const transporter = nodemailer.createTransport({
-            host: 'smtp.gmail.com',
-            port: 465,
-            secure: true,
-            family: 4,
-            auth: {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASS,
-            },
-        });
-
         const mailOptions = {
             from: process.env.EMAIL_FROM,
             to: process.env.ADMIN_EMAIL,
@@ -31,12 +20,9 @@ exports.createLead = async (req, res) => {
             `
         };
 
-        try {
-            const info = await transporter.sendMail(mailOptions);
-            console.log('Lead Email Sent! Message ID:', info.messageId);
-        } catch (err) {
-            console.error('Lead Email Error:', err);
-        }
+        sendEmail(mailOptions)
+            .then(info => console.log('Lead Email Sent! Message ID:', info.messageId))
+            .catch(err => console.error('Lead Email Error:', err));
 
         res.status(201).json(lead);
     } catch (error) {
