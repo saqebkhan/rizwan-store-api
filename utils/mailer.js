@@ -1,31 +1,17 @@
 const nodemailer = require('nodemailer');
-const dns = require('dns');
-
-const getIPv4 = (domain) => new Promise((resolve, reject) => {
-    dns.lookup(domain, { family: 4 }, (err, address) => {
-        if (err) reject(err);
-        else resolve(address);
-    });
-});
 
 const sendEmail = async (mailOptions) => {
     try {
-        // Force IPv4 resolution to fix Render ENETUNREACH issue
-        const smtpIp = await getIPv4('smtp.gmail.com');
-        
+        const port = parseInt(process.env.SMTP_PORT || '587');
         const transporter = nodemailer.createTransport({
-            host: smtpIp,
-            port: 465,
-            secure: true,
+            host: process.env.SMTP_HOST || 'smtp.gmail.com',
+            port: port,
+            secure: port === 465,
+            family: 4, // Force IPv4 to fix Render/IPv6 ENETUNREACH issues
             auth: {
                 user: process.env.SMTP_USER,
                 pass: process.env.SMTP_PASS,
             },
-            tls: {
-                // Important: Need to provide servername because we are connecting via IP
-                servername: 'smtp.gmail.com',
-                rejectUnauthorized: false
-            }
         });
 
         const info = await transporter.sendMail(mailOptions);
