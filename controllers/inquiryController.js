@@ -29,7 +29,8 @@ exports.createInquiry = async (req, res) => {
         if (inquiryData.visitorId) {
             await Session.findOneAndUpdate(
                 { visitorId: inquiryData.visitorId, endTime: { $exists: false } },
-                { isConverted: true }
+                { isConverted: true },
+                { returnDocument: 'after' }
             );
         }
 
@@ -72,7 +73,7 @@ exports.getAllInquiries = async (req, res) => {
 
 exports.updateInquiryStatus = async (req, res) => {
     try {
-        const inquiry = await Inquiry.findByIdAndUpdate(req.params.id, { status: req.body.status }, { new: true });
+        const inquiry = await Inquiry.findByIdAndUpdate(req.params.id, { status: req.body.status }, { returnDocument: 'after' });
         res.json(inquiry);
     } catch (error) {
         res.status(400).json({ message: error.message });

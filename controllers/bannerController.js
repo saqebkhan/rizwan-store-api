@@ -35,7 +35,7 @@ exports.updateBanner = async (req, res) => {
     try {
         const updates = { ...req.body };
         if (req.file) updates.image = req.file.filename;
-        const banner = await Banner.findByIdAndUpdate(req.params.id, updates, { new: true });
+        const banner = await Banner.findByIdAndUpdate(req.params.id, updates, { returnDocument: 'after' });
         res.json(banner);
     } catch (error) {
         res.status(400).json({ message: error.message });

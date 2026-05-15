@@ -71,7 +71,7 @@ exports.getProductBySlug = async (req, res) => {
         const product = await Product.findOneAndUpdate(
             { slug: req.params.slug },
             { $inc: { viewCount: 1 } },
-            { new: true }
+            { returnDocument: 'after' }
         ).populate('category');
         
         if (!product) return res.status(404).json({ message: 'Product not found' });
@@ -114,7 +114,7 @@ exports.updateProduct = async (req, res) => {
             if (req.files.images) updates.images = req.files.images.map(f => f.filename);
         }
 
-        const product = await Product.findByIdAndUpdate(req.params.id, updates, { new: true });
+        const product = await Product.findByIdAndUpdate(req.params.id, updates, { returnDocument: 'after' });
         res.json(product);
     } catch (error) {
         console.error('Error creating product:', error);

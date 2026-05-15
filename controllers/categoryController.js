@@ -33,7 +33,7 @@ exports.getCategoryBySlug = async (req, res) => {
         const category = await Category.findOneAndUpdate(
             { slug: req.params.slug },
             { $inc: { viewCount: 1 } },
-            { new: true }
+            { returnDocument: 'after' }
         );
         if (!category) return res.status(404).json({ message: 'Category not found' });
         res.json(category);
@@ -48,7 +48,7 @@ exports.updateCategory = async (req, res) => {
         if (updates.name) updates.slug = slugify(updates.name, { lower: true });
         if (req.file) updates.image = req.file.filename;
 
-        const category = await Category.findByIdAndUpdate(req.params.id, updates, { new: true });
+        const category = await Category.findByIdAndUpdate(req.params.id, updates, { returnDocument: 'after' });
         res.json(category);
     } catch (error) {
         res.status(400).json({ message: error.message });
