@@ -1,11 +1,19 @@
 const Lead = require('../models/Lead');
 const { sendEmail } = require('../utils/mailer');
+const { sendPushNotificationToAll } = require('./notificationController');
 
 exports.createLead = async (req, res) => {
     try {
         const { name, phone } = req.body;
         const lead = new Lead({ name, phone });
         await lead.save();
+
+        // Push Notification
+        sendPushNotificationToAll({
+            title: '🔥 New Popup Lead!',
+            body: `${name} just submitted their contact info (${phone}).`,
+            url: '/admin'
+        });
 
         // Email Notification
         const mailOptions = {
@@ -21,7 +29,7 @@ exports.createLead = async (req, res) => {
         };
 
         sendEmail(mailOptions)
-            .then(info => console.log('Lead Email Sent! Message ID:', info.messageId))
+            .then(info => console.log('Lead Email Sent! Message ID:', info?.messageId))
             .catch(err => console.error('Lead Email Error:', err));
 
         res.status(201).json(lead);

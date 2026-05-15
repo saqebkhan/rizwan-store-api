@@ -29,6 +29,16 @@ app.use('/api/inquiries', require('./routes/inquiryRoutes'));
 app.use('/api/sessions', require('./routes/sessionRoutes'));
 app.use('/api/banners', require('./routes/bannerRoutes'));
 app.use('/api/leads', require('./routes/leadRoutes'));
+app.use('/api/notifications', require('./routes/notificationRoutes'));
+
+const webpush = require('web-push');
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+    webpush.setVapidDetails(
+        'mailto:' + process.env.EMAIL_FROM,
+        process.env.VAPID_PUBLIC_KEY,
+        process.env.VAPID_PRIVATE_KEY
+    );
+}
 
 app.get('/', (req, res) => {
     res.json({ message: 'Welcome to Rizwan E-commerce API' });

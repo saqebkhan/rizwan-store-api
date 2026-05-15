@@ -2,6 +2,7 @@ const Inquiry = require('../models/Inquiry');
 const Product = require('../models/Product');
 const Session = require('../models/Session');
 const { sendEmail } = require('../utils/mailer');
+const { sendPushNotificationToAll } = require('./notificationController');
 
 exports.createInquiry = async (req, res) => {
     try {
@@ -23,6 +24,13 @@ exports.createInquiry = async (req, res) => {
             );
         }
 
+        // Push Notification
+        sendPushNotificationToAll({
+            title: '🛍️ New Order Received!',
+            body: `${inquiryData.fullName} just placed an order for ₹${inquiryData.totalAmount}.`,
+            url: '/admin'
+        });
+
         // Send Email to Admin (Fire and forget, don't await to block API)
         const mailOptions = {
             from: process.env.EMAIL_FROM,
@@ -42,7 +50,7 @@ exports.createInquiry = async (req, res) => {
         };
 
         sendEmail(mailOptions)
-            .then(info => console.log('Inquiry Email Sent! Message ID:', info.messageId))
+            .then(info => console.log('Inquiry Email Sent! Message ID:', info?.messageId))
             .catch(err => console.error('CRITICAL EMAIL ERROR:', err));
 
         res.status(201).json({ message: 'Inquiry submitted successfully', inquiry });
