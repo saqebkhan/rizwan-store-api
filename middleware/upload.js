@@ -23,25 +23,18 @@ const compressImage = async (req, res, next) => {
     if (!req.file && !req.files) return next();
 
     const processFile = async (file) => {
-        const filename = `${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`;
+        // Convert all images to webp for maximum compression/performance
+        const filename = `${Date.now()}-${Math.round(Math.random() * 1E9)}.webp`;
         const outputPath = path.join(__dirname, '../uploads', filename);
 
-        // Compress to <100kb
-        // We use quality adjustment and resizing to achieve this
-        let quality = 80;
-        let buffer = await sharp(file.buffer)
-            .jpeg({ quality: quality })
-            .toBuffer();
+        await sharp(file.buffer)
+            .resize(1200, null, { // Resize to max 1200px width, maintain aspect ratio
+                withoutEnlargement: true,
+                fit: 'inside'
+            })
+            .webp({ quality: 75 }) // High compression with great quality
+            .toFile(outputPath);
 
-        // If still > 100kb, reduce quality further
-        while (buffer.length > 100 * 1024 && quality > 10) {
-            quality -= 10;
-            buffer = await sharp(file.buffer)
-                .jpeg({ quality: quality })
-                .toBuffer();
-        }
-
-        fs.writeFileSync(outputPath, buffer);
         return filename;
     };
 
@@ -49,13 +42,11 @@ const compressImage = async (req, res, next) => {
         if (req.file) {
             req.file.filename = await processFile(req.file);
         } else if (req.files) {
-            // Handle multiple files (e.g., product images)
             if (Array.isArray(req.files)) {
                 for (let file of req.files) {
                     file.filename = await processFile(file);
                 }
             } else {
-                // Handle fields (e.g., thumbnail and images)
                 for (let key in req.files) {
                     for (let file of req.files[key]) {
                         file.filename = await processFile(file);

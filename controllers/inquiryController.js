@@ -1,7 +1,6 @@
 const Inquiry = require('../models/Inquiry');
 const Product = require('../models/Product');
 const Session = require('../models/Session');
-const { sendEmail } = require('../utils/mailer');
 const { sendPushNotificationToAll } = require('./notificationController');
 
 exports.createInquiry = async (req, res) => {
@@ -24,34 +23,14 @@ exports.createInquiry = async (req, res) => {
             );
         }
 
-        // Push Notification
-        sendPushNotificationToAll({
-            title: '🛍️ New Order Received!',
-            body: `${inquiryData.fullName} just placed an order for ₹${inquiryData.totalAmount}.`,
-            url: '/admin'
-        });
-
-        // Send Email to Admin (Fire and forget, don't await to block API)
-        const mailOptions = {
-            from: process.env.EMAIL_FROM,
-            to: process.env.ADMIN_EMAIL,
-            subject: `New Order Inquiry from ${inquiryData.fullName}`,
-            html: `
-                <h2>New Order Details</h2>
-                <p><strong>Customer:</strong> ${inquiryData.fullName}</p>
-                <p><strong>Phone:</strong> ${inquiryData.phone}</p>
-                <p><strong>Address:</strong> ${inquiryData.address}, ${inquiryData.city}, ${inquiryData.state} - ${inquiryData.pincode}</p>
-                <h3>Products:</h3>
-                <ul>
-                    ${inquiryData.products.map(p => `<li>${p.name} x ${p.quantity} - Rs. ${p.price * p.quantity}</li>`).join('')}
-                </ul>
-                <p><strong>Total Amount:</strong> Rs. ${inquiryData.totalAmount}</p>
-            `
-        };
-
-        sendEmail(mailOptions)
-            .then(info => console.log('Inquiry Email Sent! Message ID:', info?.messageId))
-            .catch(err => console.error('CRITICAL EMAIL ERROR:', err));
+        // Push Notification (Only if NOT placed by Admin)
+        if (!inquiryData.isAdmin) {
+            sendPushNotificationToAll({
+                title: '🛍️ New Order Received!',
+                body: `${inquiryData.fullName} just placed an order for ₹${inquiryData.totalAmount}.`,
+                url: '/admin'
+            });
+        }
 
         res.status(201).json({ message: 'Inquiry submitted successfully', inquiry });
     } catch (error) {

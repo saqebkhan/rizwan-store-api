@@ -6,9 +6,9 @@ const InquirySchema = new mongoose.Schema({
     phone: { type: String, required: true },
     alternatePhone: { type: String },
     address: { type: String, required: true },
-    city: { type: String, required: true },
-    state: { type: String, required: true },
-    pincode: { type: String, required: true },
+    city: { type: String },
+    state: { type: String },
+    pincode: { type: String },
     notes: { type: String },
 
     // Order Details
