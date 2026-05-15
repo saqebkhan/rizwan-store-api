@@ -31,7 +31,12 @@ exports.createLead = async (req, res) => {
             `
         };
 
-        transporter.sendMail(mailOptions).catch(err => console.error('Lead Email Error:', err));
+        try {
+            const info = await transporter.sendMail(mailOptions);
+            console.log('Lead Email Sent! Message ID:', info.messageId);
+        } catch (err) {
+            console.error('Lead Email Error:', err);
+        }
 
         res.status(201).json(lead);
     } catch (error) {

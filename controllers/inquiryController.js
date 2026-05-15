@@ -52,9 +52,12 @@ exports.createInquiry = async (req, res) => {
             `
         };
 
-        transporter.sendMail(mailOptions).catch(err => {
+        try {
+            const info = await transporter.sendMail(mailOptions);
+            console.log('Inquiry Email Sent! Message ID:', info.messageId);
+        } catch (err) {
             console.error('CRITICAL EMAIL ERROR:', err);
-        });
+        }
 
         res.status(201).json({ message: 'Inquiry submitted successfully', inquiry });
     } catch (error) {
