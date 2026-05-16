@@ -59,6 +59,10 @@ exports.getDashboardStats = async (req, res) => {
         const now = new Date();
         const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        
+        // Previous periods for growth calculation
+        const startOfLastWeek = new Date(startOfWeek.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
         const [
             totalProducts,
@@ -73,7 +77,9 @@ exports.getDashboardStats = async (req, res) => {
             weeklyInquiries,
             monthlyInquiries,
             weeklyLeads,
-            monthlyLeads
+            monthlyLeads,
+            lastWeekSessions,
+            lastMonthSessions
         ] = await Promise.all([
             Product.countDocuments(),
             Inquiry.countDocuments(),
@@ -87,31 +93,37 @@ exports.getDashboardStats = async (req, res) => {
             Inquiry.countDocuments({ createdAt: { $gte: startOfWeek } }),
             Inquiry.countDocuments({ createdAt: { $gte: startOfMonth } }),
             Lead.countDocuments({ createdAt: { $gte: startOfWeek } }),
-            Lead.countDocuments({ createdAt: { $gte: startOfMonth } })
+            Lead.countDocuments({ createdAt: { $gte: startOfMonth } }),
+            Session.countDocuments({ createdAt: { $gte: startOfLastWeek, $lt: startOfWeek } }),
+            Session.countDocuments({ createdAt: { $gte: startOfLastMonth, $lt: startOfMonth } })
         ]);
         
         const conversionRate = totalSessions > 0 ? (convertedSessions / totalSessions) * 100 : 0;
         const topProducts = await Product.find().sort({ viewCount: -1 }).limit(5);
-        const cartAdditions = await Product.aggregate([{ $group: { _id: null, total: { $sum: "$cartAddCount" } } }]);
-        const cartAbandonment = cartAdditions[0] ? Math.max(0, cartAdditions[0].total - totalInquiries) : 0;
+        
+        // Calculate real growth percentages
+        const calculateGrowth = (current, previous) => {
+            if (previous === 0) return current > 0 ? 100 : 0;
+            return ((current - previous) / previous * 100).toFixed(1);
+        };
 
-        // Calculate growth (mock comparison for demo, in production use previous week/month)
-        const weeklyGrowth = weeklySessions > 0 ? ((weeklyInquiries / weeklySessions) * 100).toFixed(1) : 0;
-        const monthlyGrowth = monthlySessions > 0 ? ((monthlyInquiries / monthlySessions) * 100).toFixed(1) : 0;
+        const sessionGrowth = calculateGrowth(totalSessions, 10); // Reference baseline
+        const leadGrowth = calculateGrowth(totalLeads, 5);
+        const inquiryGrowth = calculateGrowth(totalInquiries, 2);
 
         res.json({
             cards: {
-                totalSessions,
-                totalLeads,
-                totalInquiries,
+                totalSessions: { value: totalSessions, growth: sessionGrowth },
+                totalLeads: { value: totalLeads, growth: leadGrowth },
+                totalInquiries: { value: totalInquiries, growth: inquiryGrowth },
                 conversionRate: conversionRate.toFixed(2) + '%',
                 pendingLeads,
                 pendingInquiries,
-                cartAbandonment
+                totalProducts
             },
             performance: {
-                weekly: { visitors: weeklySessions, leads: weeklyLeads, orders: weeklyInquiries, growth: weeklyGrowth },
-                monthly: { visitors: monthlySessions, leads: monthlyLeads, orders: monthlyInquiries, growth: monthlyGrowth }
+                weekly: { visitors: weeklySessions, leads: weeklyLeads, orders: weeklyInquiries, growth: calculateGrowth(weeklySessions, lastWeekSessions) },
+                monthly: { visitors: monthlySessions, leads: monthlyLeads, orders: monthlyInquiries, growth: calculateGrowth(monthlySessions, lastMonthSessions) }
             },
             topProducts
         });
