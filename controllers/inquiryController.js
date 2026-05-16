@@ -1,6 +1,7 @@
 const Inquiry = require('../models/Inquiry');
 const Product = require('../models/Product');
 const Session = require('../models/Session');
+const Lead = require('../models/Lead');
 const { sendPushNotificationToAll } = require('./notificationController');
 
 exports.createInquiry = async (req, res) => {
@@ -9,12 +10,10 @@ exports.createInquiry = async (req, res) => {
         const inquiry = new Inquiry(inquiryData);
         await inquiry.save();
 
-        // Update product order counts
         for (let item of inquiryData.products) {
             await Product.findByIdAndUpdate(item.product, { $inc: { orderCount: 1 } });
         }
 
-        // Update session conversion status
         if (inquiryData.visitorId) {
             await Session.findOneAndUpdate(
                 { visitorId: inquiryData.visitorId, endTime: { $exists: false } },
@@ -23,7 +22,6 @@ exports.createInquiry = async (req, res) => {
             );
         }
 
-        // Push Notification (Only if NOT placed by Admin)
         if (!inquiryData.isAdmin) {
             sendPushNotificationToAll({
                 title: '🛍️ New Order Received!',
@@ -58,32 +56,64 @@ exports.updateInquiryStatus = async (req, res) => {
 
 exports.getDashboardStats = async (req, res) => {
     try {
-        const totalProducts = await Product.countDocuments();
-        const totalInquiries = await Inquiry.countDocuments();
-        const totalSessions = await Session.countDocuments();
-        const convertedSessions = await Session.countDocuments({ isConverted: true });
-        
-        // Calculate Conversion Rate
-        const conversionRate = totalSessions > 0 ? (convertedSessions / totalSessions) * 100 : 0;
+        const now = new Date();
+        const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-        // Top Products
-        const topProducts = await Product.find().sort({ viewCount: -1 }).limit(5);
+        const [
+            totalProducts,
+            totalInquiries,
+            totalSessions,
+            convertedSessions,
+            totalLeads,
+            pendingLeads,
+            pendingInquiries,
+            weeklySessions,
+            monthlySessions,
+            weeklyInquiries,
+            monthlyInquiries,
+            weeklyLeads,
+            monthlyLeads
+        ] = await Promise.all([
+            Product.countDocuments(),
+            Inquiry.countDocuments(),
+            Session.countDocuments(),
+            Session.countDocuments({ isConverted: true }),
+            Lead.countDocuments(),
+            Lead.countDocuments({ status: 'pending' }),
+            Inquiry.countDocuments({ status: 'pending' }),
+            Session.countDocuments({ createdAt: { $gte: startOfWeek } }),
+            Session.countDocuments({ createdAt: { $gte: startOfMonth } }),
+            Inquiry.countDocuments({ createdAt: { $gte: startOfWeek } }),
+            Inquiry.countDocuments({ createdAt: { $gte: startOfMonth } }),
+            Lead.countDocuments({ createdAt: { $gte: startOfWeek } }),
+            Lead.countDocuments({ createdAt: { $gte: startOfMonth } })
+        ]);
         
-        // Cart Abandonment (Sessions with product views or cart additions but no conversion)
-        // For simplicity, we define it as sessions with cart additions but no conversion
+        const conversionRate = totalSessions > 0 ? (convertedSessions / totalSessions) * 100 : 0;
+        const topProducts = await Product.find().sort({ viewCount: -1 }).limit(5);
         const cartAdditions = await Product.aggregate([{ $group: { _id: null, total: { $sum: "$cartAddCount" } } }]);
         const cartAbandonment = cartAdditions[0] ? Math.max(0, cartAdditions[0].total - totalInquiries) : 0;
 
+        // Calculate growth (mock comparison for demo, in production use previous week/month)
+        const weeklyGrowth = weeklySessions > 0 ? ((weeklyInquiries / weeklySessions) * 100).toFixed(1) : 0;
+        const monthlyGrowth = monthlySessions > 0 ? ((monthlyInquiries / monthlySessions) * 100).toFixed(1) : 0;
+
         res.json({
             cards: {
-                totalProducts,
-                totalInquiries,
                 totalSessions,
+                totalLeads,
+                totalInquiries,
                 conversionRate: conversionRate.toFixed(2) + '%',
+                pendingLeads,
+                pendingInquiries,
                 cartAbandonment
             },
-            topProducts,
-            // ... more stats can be added
+            performance: {
+                weekly: { visitors: weeklySessions, leads: weeklyLeads, orders: weeklyInquiries, growth: weeklyGrowth },
+                monthly: { visitors: monthlySessions, leads: monthlyLeads, orders: monthlyInquiries, growth: monthlyGrowth }
+            },
+            topProducts
         });
     } catch (error) {
         res.status(500).json({ message: error.message });
