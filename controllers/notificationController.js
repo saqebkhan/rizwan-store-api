@@ -63,8 +63,7 @@ exports.sendPushNotificationToAll = async (payload) => {
         const notifications = subscriptions.map(sub => 
             webpush.sendNotification(sub, JSON.stringify(payload), {
                 TTL: 2419200, // 28 days — deliver even if device is offline for weeks
-                urgency: 'high', // Bypasses OS battery optimization
-                topic: 'admin-alerts' // Deduplicates on the push server side
+                urgency: 'high' // Bypasses OS battery optimization
             })
                 .catch(async err => {
                     if (err.statusCode === 404 || err.statusCode === 410) {
