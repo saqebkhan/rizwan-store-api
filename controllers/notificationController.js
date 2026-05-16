@@ -35,7 +35,11 @@ exports.sendPushNotificationToAll = async (payload) => {
         if (subscriptions.length === 0) return;
 
         const notifications = subscriptions.map(sub => 
-            webpush.sendNotification(sub, JSON.stringify(payload))
+            webpush.sendNotification(sub, JSON.stringify(payload), {
+                TTL: 60, // Delivery retry window (seconds)
+                urgency: 'high', // Bypasses OS "battery optimization" delays
+                topic: 'admin-alerts' // Prevents notification stacking/merging in some browsers
+            })
                 .catch(async err => {
                     if (err.statusCode === 404 || err.statusCode === 410) {
                         // Subscription has expired or is no longer valid - remove it
