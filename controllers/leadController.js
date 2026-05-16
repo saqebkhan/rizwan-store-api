@@ -11,7 +11,7 @@ exports.createLead = async (req, res) => {
         sendPushNotificationToAll({
             title: '🔥 New Popup Lead!',
             body: `${name} just submitted their contact info (${phone}).`,
-            url: '/admin'
+            url: '/admin/leads?type=lead&status=pending'
         });
 
         res.status(201).json(lead);

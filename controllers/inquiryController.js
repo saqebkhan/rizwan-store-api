@@ -26,7 +26,7 @@ exports.createInquiry = async (req, res) => {
             sendPushNotificationToAll({
                 title: '🛍️ New Order Received!',
                 body: `${inquiryData.fullName} just placed an order for ₹${inquiryData.totalAmount}.`,
-                url: '/admin'
+                url: '/admin/leads?type=inquiry&status=pending'
             });
         }
 
