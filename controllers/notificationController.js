@@ -32,19 +32,22 @@ exports.unsubscribe = async (req, res) => {
 exports.sendPushNotificationToAll = async (payload) => {
     try {
         const subscriptions = await Subscription.find();
+        if (subscriptions.length === 0) return;
+
         const notifications = subscriptions.map(sub => 
-            webpush.sendNotification(sub, JSON.stringify(payload)).catch(err => {
-                if (err.statusCode === 404 || err.statusCode === 410) {
-                    // Subscription has expired or is no longer valid
-                    return Subscription.findByIdAndDelete(sub._id);
-                } else {
-                    console.error('Push Error:', err);
-                }
-            })
+            webpush.sendNotification(sub, JSON.stringify(payload))
+                .catch(async err => {
+                    if (err.statusCode === 404 || err.statusCode === 410) {
+                        // Subscription has expired or is no longer valid - remove it
+                        await Subscription.findByIdAndDelete(sub._id);
+                    } else {
+                        console.error('Push Service Error:', err.endpoint, err.statusCode);
+                    }
+                })
         );
         await Promise.all(notifications);
     } catch (error) {
-        console.error('Failed to send push notifications:', error);
+        console.error('Broadcast Failure:', error);
     }
 };
 
